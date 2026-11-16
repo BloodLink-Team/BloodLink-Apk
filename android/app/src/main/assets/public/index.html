@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#c80000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BloodLink" />
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <title>BloodLink - Emergency Blood Donor</title>
+    <meta name="description" content="A mobile-friendly emergency blood donor matching system for Bangladesh that connects patients with nearby donors using Google Sheets as a database." />
+    <meta name="keywords" content="blood donation bangladesh, emergency blood donor, রক্তদান, রক্তদাতা, bloodlink, donate blood save lives, রক্ত দিন জীবন বাঁচান, blood group search, blood donation faq" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="BloodLink" />
+    <meta property="og:title" content="BloodLink - Emergency Blood Donor" />
+    <meta property="og:description" content="A mobile-friendly emergency blood donor matching system for Bangladesh that connects patients with nearby donors using Google Sheets as a database." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BloodLink - Emergency Blood Donor" />
+    <meta name="twitter:description" content="A mobile-friendly emergency blood donor matching system for Bangladesh that connects patients with nearby donors using Google Sheets as a database." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "BloodLink",
+        "alternateName": "ব্লাডলিংক - রক্ত দিন, জীবন বাঁচান",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "All",
+        "description": "A non-profit emergency blood donor matching platform for Bangladesh connecting patients with nearby voluntary blood donors.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "BDT"
+        }
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-Bg8eLcOt.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-DUnr5_aZ.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-EFbjPvrX.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-Da-GDCoC.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-motion-Cp07Kqid.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Db_tPT67.css">
+  </head>
+  <body>
+    <script>
+      // Self-healing service worker cleanup if obsolete hashed assets fail to load
+      window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_recovered')) {
+            sessionStorage.setItem('sw_recovered', 'true');
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+              caches.keys().then(function(keys) {
+                keys.forEach(function(k) { caches.delete(k); });
+                window.location.reload();
+              });
+            });
+          }
+        }
+      }, true);
+    </script>
+    <div id="root"></div>
+  </body>
+</html>
+
