@@ -1,0 +1,6 @@
+{
+  "name": "BloodLink - Emergency Blood Donor",
+  "description": "A mobile-friendly emergency blood donor matching system for Bangladesh that connects patients with nearby donors using Google Sheets as a database.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
