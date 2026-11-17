@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { useLanguage, LanguageSwitch, Language, toBnNumber } from "../i18n";
 import { searchBloodFaqs } from "../utils/faqSearch";
+import { goBack } from "../utils/navigation";
+import { useScrollLock } from "../utils/scrollLock";
 import { FaqAssistantModal } from "./FaqAssistantModal";
 
 
@@ -919,6 +921,12 @@ export const SideMenuDrawer: React.FC<{
 }> = React.memo(({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { lang } = useLanguage();
+  useScrollLock(isOpen);
+
+  // Swipe right-to-left on the open menu closes it
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef(0);
+
   return createPortal(
     <div
       className={`fixed inset-0 z-[120] flex ${
@@ -929,14 +937,30 @@ export const SideMenuDrawer: React.FC<{
       {/* GPU-accelerated Backdrop (no expensive backdrop-blur) */}
       <div
         onClick={onClose}
-        className={`fixed inset-0 bg-slate-900/50 transition-opacity duration-200 ease-out will-change-[opacity] ${
+        className={`fixed inset-0 touch-none bg-slate-900/50 transition-opacity duration-200 ease-out will-change-[opacity] ${
           isOpen ? "opacity-100" : "opacity-0"
         }`}
       />
 
       {/* Pre-mounted GPU-composited Slide-out Side Drawer */}
       <aside
-        className={`relative z-10 w-[82vw] max-w-[310px] h-[100dvh] bg-white shadow-xl flex flex-col justify-between overflow-y-auto select-none transform-gpu will-change-transform transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        onTouchStart={(e) => {
+          touchStartX.current = e.touches[0].clientX;
+          touchStartY.current = e.touches[0].clientY;
+        }}
+        onTouchMove={(e) => {
+          if (touchStartX.current === null) return;
+          const dx = e.touches[0].clientX - touchStartX.current;
+          const dy = e.touches[0].clientY - touchStartY.current;
+          if (dx < -60 && Math.abs(dy) < Math.abs(dx) * 0.5) {
+            touchStartX.current = null;
+            onClose();
+          }
+        }}
+        onTouchEnd={() => {
+          touchStartX.current = null;
+        }}
+        className={`relative z-10 w-[82vw] max-w-[310px] h-[100dvh] bg-white shadow-xl flex flex-col justify-between overflow-y-auto overscroll-contain select-none transform-gpu will-change-transform transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -1114,13 +1138,7 @@ const PageSubHeader: React.FC<{
   onSelectLang,
 }) => {
   const navigate = useNavigate();
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
-  };
+  const handleBack = () => goBack(navigate);
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 px-4 h-16 flex items-center justify-between gap-2 shadow-sm">
@@ -1251,7 +1269,7 @@ export const LearnAboutDonationView: React.FC = () => {
         currentLang={faqLang}
         onSelectLang={setFaqLang}
       />
-      <main className="max-w-md mx-auto p-5 pb-24 space-y-4">
+      <main className="selectable max-w-md mx-auto p-5 pb-24 space-y-4">
         {/* Intro Banner */}
         <div className="bg-[#c80000] text-white rounded-3xl p-5 shadow-md space-y-2">
           <div className="flex items-center gap-2.5">
@@ -1352,7 +1370,7 @@ export const LearnAboutDonationView: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all"
+                  className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-[background-color,border-color,color,opacity,transform,box-shadow]"
                 >
                   <button
                     type="button"
@@ -1395,7 +1413,7 @@ export const LearnAboutDonationView: React.FC = () => {
             setAiInitialQuestion("");
             setIsAiModalOpen(true);
           }}
-          className="w-13 h-13 rounded-full bg-[#c80000] p-0 shadow-xl shadow-red-950/40 active:scale-95 hover:scale-105 transition-all duration-150 flex items-center justify-center cursor-pointer border-2 border-white ring-2 ring-red-500/30 overflow-hidden"
+          className="w-13 h-13 rounded-full bg-[#c80000] p-0 shadow-xl shadow-red-950/40 active:scale-95 hover:scale-105 transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150 flex items-center justify-center cursor-pointer border-2 border-white ring-2 ring-red-500/30 overflow-hidden"
           aria-label={faqLang === "bn" ? "এআই সহকারী খুলুন" : "Open AI Assistant"}
           title={faqLang === "bn" ? "রক্তদান এআই সহকারী" : "BloodLink AI Assistant"}
         >
@@ -1553,7 +1571,7 @@ export const BlogsPortalView: React.FC = () => {
               href={BLOG_WEBSITE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#c80000] text-white font-bold py-3 px-5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-all text-xs"
+              className="w-full inline-flex items-center justify-center gap-2 bg-[#c80000] text-white font-bold py-3 px-5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs"
             >
               <span>
                 {lang === "bn" ? "ব্লগ ওয়েবসাইটে যান" : "Open Blog Website"}
@@ -1627,7 +1645,7 @@ export const NationalHelplinesView: React.FC = () => {
 
               <a
                 href={`tel:${item.dialNumber}`}
-                className="shrink-0 inline-flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-[#c80000] text-white font-bold shadow-sm hover:bg-red-800 active:scale-95 transition-all"
+                className="shrink-0 inline-flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-[#c80000] text-white font-bold shadow-sm hover:bg-red-800 active:scale-95 transition-[background-color,border-color,color,opacity,transform,box-shadow]"
                 aria-label={`Call ${item.dialNumber}`}
               >
                 <PhoneCall className="w-5 h-5" />
@@ -1746,7 +1764,7 @@ export const SupportUsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCopy(item.id, item.number)}
-                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:border-red-200 hover:text-[#c80000] active:scale-95 transition-all text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs shrink-0"
+                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:border-red-200 hover:text-[#c80000] active:scale-95 transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs shrink-0"
                   >
                     {isCopied ? (
                       <>
@@ -1855,7 +1873,7 @@ export const HowToUseAppView: React.FC = () => {
                 href={directWatchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-[background-color,border-color,color,opacity,transform,box-shadow]"
               >
                 <Youtube className="w-4 h-4 fill-current" />
                 <span>{lang === "bn" ? "ইউটিউবে দেখুন" : "Watch on YouTube"}</span>
@@ -1865,7 +1883,7 @@ export const HowToUseAppView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold active:scale-95 transition-[background-color,border-color,color,opacity,transform,box-shadow]"
                 title={lang === "bn" ? "ভিডিও লিংক কপি করুন" : "Copy video link"}
               >
                 {copied ? (

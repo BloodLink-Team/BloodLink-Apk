@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, Droplets, UserPlus, Search, Phone, MapPin, Calendar, User, Heart, ShieldCheck, AlertCircle, LogOut, X, Menu } from "lucide-react";
@@ -19,6 +21,9 @@ import { getLocationDistanceKm } from "./data/geoCoordinates";
 import { fetchDonors, registerDonor, sendOtp, verifyOtp, updateDonor, subscribeToDonors } from "./services/api";
 import { SimplifiedDatePicker } from "./components/SimplifiedDatePicker";
 import { LanguageProvider, useLanguage, LanguageSwitch, Language } from "./i18n";
+import { useBackClose, closeTopOverlay } from "./utils/backStack";
+import { goBack, historyIndex } from "./utils/navigation";
+import { useSwipeRight } from "./utils/useSwipeRight";
 import { SideMenuDrawer, LearnAboutDonationView, BlogsPortalView, MeetOurTeamView, NationalHelplinesView, SupportUsView, HowToUseAppView } from "./components/SideMenuPages";
 
 // Components
@@ -110,7 +115,7 @@ const UpdatePromptModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdat
       exit={{ opacity: 0 }}
       transition={FAST_TRANSITION}
       onClick={onClose}
-      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 backdrop-blur-md touch-none select-none"
+      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 touch-none select-none"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -157,7 +162,7 @@ const UpdatePromptModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdat
             <button 
               onClick={handleSubmit}
               disabled={!newDate || updating}
-              className="w-full bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] disabled:opacity-50 transition-all text-xs"
+              className="w-full bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] disabled:opacity-50 transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs"
             >
               {updating
                 ? lang === "bn" ? "আপডেট হচ্ছে..." : "Updating..."
@@ -184,11 +189,7 @@ const Layout = ({ children, title, showBack = true, onBack }: { children: React.
       onBack();
       return;
     }
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
+    goBack(navigate);
   };
 
   return (
@@ -297,7 +298,7 @@ const LogoutConfirmModal = ({
       exit={{ opacity: 0 }}
       transition={FAST_TRANSITION}
       onClick={onClose}
-      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 backdrop-blur-md touch-none select-none"
+      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 touch-none select-none"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -326,14 +327,14 @@ const LogoutConfirmModal = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 active:scale-[0.99] transition-all text-xs"
+            className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs"
           >
             {lang === "bn" ? "বাতিল" : "Cancel"}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="w-full bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-all text-xs"
+            className="w-full bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs"
           >
             {lang === "bn" ? "লগ আউট" : "Log Out"}
           </button>
@@ -364,7 +365,7 @@ const RegisterPromptModal = ({
       exit={{ opacity: 0 }}
       transition={FAST_TRANSITION}
       onClick={onMaybeLater}
-      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 backdrop-blur-md touch-none select-none"
+      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 touch-none select-none"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -395,7 +396,7 @@ const RegisterPromptModal = ({
           <button
             type="button"
             onClick={onRegister}
-            className="w-full bg-[#c80000] text-white font-bold py-2.5 px-4 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-all text-xs flex items-center justify-center gap-1.5"
+            className="w-full bg-[#c80000] text-white font-bold py-2.5 px-4 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs flex items-center justify-center gap-1.5"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>{lang === "bn" ? "রক্তদাতা হিসেবে নিবন্ধন" : "Register as Donor"}</span>
@@ -405,14 +406,14 @@ const RegisterPromptModal = ({
             <button
               type="button"
               onClick={onMaybeLater}
-              className="w-full py-2 bg-slate-100 text-slate-600 rounded-xl font-semibold hover:bg-slate-200 active:scale-[0.99] transition-all text-[11px]"
+              className="w-full py-2 bg-slate-100 text-slate-600 rounded-xl font-semibold hover:bg-slate-200 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-[11px]"
             >
               {lang === "bn" ? "পরে করব" : "Maybe Later"}
             </button>
             <button
               type="button"
               onClick={onNeverShowAgain}
-              className="w-full py-2 bg-slate-50 text-slate-400 rounded-xl font-semibold hover:text-slate-600 hover:bg-slate-100 active:scale-[0.99] transition-all text-[11px]"
+              className="w-full py-2 bg-slate-50 text-slate-400 rounded-xl font-semibold hover:text-slate-600 hover:bg-slate-100 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-[11px]"
             >
               {lang === "bn" ? "আর দেখাবেন না" : "Don't Ask Again"}
             </button>
@@ -432,6 +433,25 @@ const Home = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const [showSideMenu, setShowSideMenu] = useState(false);
+
+  const handleMaybeLater = () => {
+    safeSetItem("register_prompt_dismissed_at", Date.now().toString());
+    setShowRegisterPrompt(false);
+  };
+  const registerPromptVisible = showRegisterPrompt && !currentUser;
+  const updatePromptVisible = showUpdatePrompt && !!currentUser;
+
+  // Device back button closes whichever overlay is open
+  useBackClose(showSideMenu, () => setShowSideMenu(false));
+  useBackClose(updatePromptVisible, () => setShowUpdatePrompt(false));
+  useBackClose(showLogoutConfirm, () => setShowLogoutConfirm(false));
+  useBackClose(registerPromptVisible, handleMaybeLater);
+
+  // Swipe left-to-right anywhere on the home screen opens the side menu
+  useSwipeRight(
+    () => setShowSideMenu(true),
+    !showSideMenu && !updatePromptVisible && !showLogoutConfirm && !registerPromptVisible
+  );
 
   useEffect(() => {
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -547,10 +567,7 @@ const Home = () => {
               setShowRegisterPrompt(false);
               navigate("/register");
             }}
-            onMaybeLater={() => {
-              safeSetItem("register_prompt_dismissed_at", Date.now().toString());
-              setShowRegisterPrompt(false);
-            }}
+            onMaybeLater={handleMaybeLater}
             onNeverShowAgain={() => {
               safeSetItem("register_prompt_status", "never");
               setShowRegisterPrompt(false);
@@ -597,7 +614,7 @@ const Home = () => {
       <div className="grid grid-cols-1 w-full gap-5 max-w-sm px-4">
         <button
           onClick={() => navigate("/search")}
-          className="flex flex-col items-center gap-4 bg-red-50 border-2 border-red-600 p-8 rounded-3xl transition-all duration-150 ease-out active:scale-[0.99] shadow-sm hover:bg-red-100/50"
+          className="flex flex-col items-center gap-4 bg-red-50 border-2 border-red-600 p-8 rounded-3xl transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150 ease-out active:scale-[0.99] shadow-sm hover:bg-red-100/50"
         >
           <div className="w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg">
             <Search className="w-8 h-8" />
@@ -615,7 +632,7 @@ const Home = () => {
         {currentUser ? (
           <button
             onClick={() => navigate(`/profile/${currentUser.id}`, { state: { donor: currentUser } })}
-            className="flex flex-col items-center gap-4 bg-emerald-50 border-2 border-emerald-600 p-8 rounded-3xl transition-all duration-150 ease-out active:scale-[0.99] shadow-sm hover:bg-emerald-100/50"
+            className="flex flex-col items-center gap-4 bg-emerald-50 border-2 border-emerald-600 p-8 rounded-3xl transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150 ease-out active:scale-[0.99] shadow-sm hover:bg-emerald-100/50"
           >
             <div className="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg">
               <User className="w-8 h-8" />
@@ -632,7 +649,7 @@ const Home = () => {
         ) : (
           <button
             onClick={() => navigate("/register")}
-            className="flex flex-col items-center gap-4 bg-emerald-50 border-2 border-emerald-600 p-8 rounded-3xl transition-all duration-150 ease-out active:scale-[0.99] shadow-sm hover:bg-emerald-100/50"
+            className="flex flex-col items-center gap-4 bg-emerald-50 border-2 border-emerald-600 p-8 rounded-3xl transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150 ease-out active:scale-[0.99] shadow-sm hover:bg-emerald-100/50"
           >
             <div className="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg">
               <UserPlus className="w-8 h-8" />
@@ -710,12 +727,6 @@ const Home = () => {
       </div>
 
       <div className="w-full max-w-sm px-4 space-y-4">
-        <div className="flex items-center justify-center gap-2 px-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            {lang === "bn" ? "৪,১০২ জন রক্তদাতা উপলব্ধ" : "4,102 Donors Available"}
-          </span>
-        </div>
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/50">
           <p className="text-[11px] font-bold italic text-slate-600 leading-relaxed text-center tracking-wide">
             {lang === "bn" ? "জীবন বাঁচানোর জন্য একটি অলাভজনক উদ্যোগ" : "A non-profit platform that saves lives"}
@@ -795,6 +806,73 @@ const SplashScreen = () => {
         {lang === "bn" ? "জীবন বাঁচানোর জন্য একটি অলাভজনক উদ্যোগ" : "A non-profit platform that saves lives"}
       </motion.p>
     </motion.div>
+  );
+};
+
+/** Handles the Android back button: close overlay -> previous page -> Home -> exit. */
+const NativeBackHandler: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathRef = useRef(location.pathname);
+  pathRef.current = location.pathname;
+
+  useEffect(() => {
+    const onBack = () => {
+      if (closeTopOverlay()) return;
+      if (historyIndex() > 0) {
+        navigate(-1);
+      } else if (pathRef.current !== "/") {
+        navigate("/", { replace: true });
+      } else if (Capacitor.isNativePlatform()) {
+        CapacitorApp.exitApp().catch(() => {});
+      }
+    };
+    window.addEventListener("bloodlink:back", onBack);
+    return () => window.removeEventListener("bloodlink:back", onBack);
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    let remove: (() => void) | undefined;
+    CapacitorApp.addListener("backButton", () => {
+      window.dispatchEvent(new Event("bloodlink:back"));
+    })
+      .then((handle) => {
+        if (cancelled) handle.remove();
+        else remove = () => handle.remove();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
+  }, []);
+
+  return null;
+};
+
+/** Re-keys on every page change so each page fades/slides in with a light CSS animation. */
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="page-enter">
+      <Routes location={location}>
+        <Route path="/" element={<HomeWrapper />} />
+        <Route path="/register" element={<RegisterWrapper />} />
+        <Route path="/search" element={<SearchWrapper />} />
+        <Route path="/donors" element={<ListWrapper />} />
+        <Route path="/profile/:id" element={<ProfileWrapper />} />
+        <Route path="/learn" element={<LearnWrapper />} />
+        <Route path="/blogs" element={<BlogsWrapper />} />
+        <Route path="/team" element={<TeamWrapper />} />
+        <Route path="/helplines" element={<HelplinesWrapper />} />
+        <Route path="/support" element={<SupportWrapper />} />
+        <Route path="/how-to-use" element={<HowToUseWrapper />} />
+        <Route path="/tutorial" element={<HowToUseWrapper />} />
+        <Route path="*" element={<HomeWrapper />} />
+      </Routes>
+    </div>
   );
 };
 
@@ -890,24 +968,11 @@ export default function App() {
     <LanguageProvider>
       <BrowserRouter>
         <SessionRouteTracker />
+        <NativeBackHandler />
         <AnimatePresence>
           {showSplash && <SplashScreen />}
         </AnimatePresence>
-        <Routes>
-          <Route path="/" element={<HomeWrapper />} />
-          <Route path="/register" element={<RegisterWrapper />} />
-          <Route path="/search" element={<SearchWrapper />} />
-          <Route path="/donors" element={<ListWrapper />} />
-          <Route path="/profile/:id" element={<ProfileWrapper />} />
-          <Route path="/learn" element={<LearnWrapper />} />
-          <Route path="/blogs" element={<BlogsWrapper />} />
-          <Route path="/team" element={<TeamWrapper />} />
-          <Route path="/helplines" element={<HelplinesWrapper />} />
-          <Route path="/support" element={<SupportWrapper />} />
-          <Route path="/how-to-use" element={<HowToUseWrapper />} />
-          <Route path="/tutorial" element={<HowToUseWrapper />} />
-          <Route path="*" element={<HomeWrapper />} />
-        </Routes>
+        <AnimatedRoutes />
       </BrowserRouter>
     </LanguageProvider>
   );
@@ -1034,9 +1099,12 @@ const RegisterView = () => {
       safeRemoveItem("pending_reg_phone");
       setStep("phone");
     } else {
-      navigate("/");
+      goBack(navigate);
     }
   };
+
+  // Device back button steps back inside the registration form before leaving it
+  useBackClose(step === "details", handleLayoutBack);
 
   return (
     <Layout
@@ -1208,7 +1276,7 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-red-800 active:scale-[0.99] transition-all duration-150 uppercase tracking-widest text-xs disabled:bg-slate-300"
+          className="w-full bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150 uppercase tracking-widest text-xs disabled:bg-slate-300"
         >
           {loading
             ? lang === "bn" ? "প্রক্রিয়াধীন..." : "Processing..."
@@ -1251,15 +1319,8 @@ const DonorListView = () => {
 
 const ProfileView = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { lang } = useLanguage();
-  const handleBack = () => {
-    if (location.state?.fromSearch) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
-  };
+  const handleBack = () => goBack(navigate);
   return (
     <Layout title={lang === "bn" ? "রক্তদাতার প্রোফাইল" : "Donor Profile"} onBack={handleBack}>
       <DonorProfile />
@@ -1434,7 +1495,7 @@ const RegistrationForm = ({ initialPhone }: { initialPhone: string }) => {
           <input
             required
             type="text"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-red-600 transition-all"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-red-600 transition-[background-color,border-color,color,opacity,transform,box-shadow]"
             value={formData.name}
             onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
           />
@@ -1583,7 +1644,7 @@ const RegistrationForm = ({ initialPhone }: { initialPhone: string }) => {
                 setIsFirstTimeDonor(true);
                 setFormData(prev => ({ ...prev, lastDonationDate: "", timesDonated: 0 }));
               }}
-              className={`py-3 px-3 rounded-xl font-black text-xs transition-all border-2 ${
+              className={`py-3 px-3 rounded-xl font-black text-xs transition-[background-color,border-color,color,opacity,transform,box-shadow] border-2 ${
                 isFirstTimeDonor
                   ? "bg-red-700 text-white border-red-700 shadow-sm"
                   : "bg-white text-slate-600 border-slate-200 hover:border-red-200"
@@ -1594,7 +1655,7 @@ const RegistrationForm = ({ initialPhone }: { initialPhone: string }) => {
             <button
               type="button"
               onClick={() => setIsFirstTimeDonor(false)}
-              className={`py-3 px-3 rounded-xl font-black text-xs transition-all border-2 ${
+              className={`py-3 px-3 rounded-xl font-black text-xs transition-[background-color,border-color,color,opacity,transform,box-shadow] border-2 ${
                 !isFirstTimeDonor
                   ? "bg-red-700 text-white border-red-700 shadow-sm"
                   : "bg-white text-slate-600 border-slate-200 hover:border-red-200"
@@ -2041,7 +2102,7 @@ const DonorList = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={FAST_TRANSITION}
         onClick={() => navigate(`/profile/${donor.id}`, { state: { donor, fromSearch: true } })}
-        className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:border-red-200 active:scale-[0.99] transition-all duration-150"
+        className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:border-red-200 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150"
       >
         <div className="p-5 space-y-4">
           <div className="flex items-center space-x-4">
@@ -2225,7 +2286,7 @@ const DonorList = () => {
             <button
               type="button"
               onClick={handleShowCompatible}
-              className="w-full py-3 px-4 rounded-2xl bg-red-700 text-white font-black text-[11px] uppercase tracking-wider hover:bg-red-800 active:scale-[0.99] transition-all shadow-md"
+              className="w-full py-3 px-4 rounded-2xl bg-red-700 text-white font-black text-[11px] uppercase tracking-wider hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] shadow-md"
             >
               {lang === "bn"
                 ? `${n(compatibleDonors.length)} জন সামঞ্জস্যপূর্ণ রক্তদাতা দেখুন`
@@ -2237,7 +2298,7 @@ const DonorList = () => {
             <button
               type="button"
               onClick={handleExpandLocation}
-              className="w-full py-3 px-4 rounded-2xl bg-slate-900 text-white font-black text-[11px] uppercase tracking-wider hover:bg-slate-800 active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-1.5"
+              className="w-full py-3 px-4 rounded-2xl bg-slate-900 text-white font-black text-[11px] uppercase tracking-wider hover:bg-slate-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] shadow-md flex items-center justify-center gap-1.5"
             >
               <MapPin className="w-3.5 h-3.5 text-red-400 shrink-0" />
               <span>{nextScopeAction.buttonLabel}</span>
@@ -2375,7 +2436,7 @@ const DonorList = () => {
           <button
             type="button"
             onClick={() => setFilterTab("exact")}
-            className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+            className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-[background-color,border-color,color,opacity,transform,box-shadow] text-center ${
               filterTab === "exact"
                 ? "bg-white text-red-700 shadow-xs border border-red-100"
                 : "text-slate-600 hover:text-slate-900"
@@ -2386,7 +2447,7 @@ const DonorList = () => {
           <button
             type="button"
             onClick={() => setFilterTab("compatible")}
-            className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+            className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-[background-color,border-color,color,opacity,transform,box-shadow] text-center ${
               filterTab === "compatible"
                 ? "bg-red-700 text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
@@ -2397,7 +2458,7 @@ const DonorList = () => {
           <button
             type="button"
             onClick={() => setFilterTab("all")}
-            className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+            className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-[background-color,border-color,color,opacity,transform,box-shadow] text-center ${
               filterTab === "all"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
@@ -2627,7 +2688,7 @@ const EditProfileModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdate
       exit={{ opacity: 0 }}
       transition={FAST_TRANSITION}
       onClick={onClose}
-      className="fixed inset-0 w-screen h-[100dvh] z-[110] bg-slate-900/55 backdrop-blur-md flex items-end sm:items-center justify-center"
+      className="fixed inset-0 w-screen h-[100dvh] z-[110] bg-slate-900/55 flex items-end sm:items-center justify-center"
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -2730,7 +2791,7 @@ const EditProfileModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdate
                      setIsFirstTimeDonor(true);
                      setFormData(p => ({ ...p, lastDonationDate: "", timesDonated: 0 }));
                    }}
-                   className={`py-2.5 px-3 rounded-xl font-black text-xs transition-all border-2 ${
+                   className={`py-2.5 px-3 rounded-xl font-black text-xs transition-[background-color,border-color,color,opacity,transform,box-shadow] border-2 ${
                      isFirstTimeDonor
                        ? "bg-red-700 text-white border-red-700 shadow-sm"
                        : "bg-white text-slate-600 border-slate-200 hover:border-red-200"
@@ -2741,7 +2802,7 @@ const EditProfileModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdate
                  <button
                    type="button"
                    onClick={() => setIsFirstTimeDonor(false)}
-                   className={`py-2.5 px-3 rounded-xl font-black text-xs transition-all border-2 ${
+                   className={`py-2.5 px-3 rounded-xl font-black text-xs transition-[background-color,border-color,color,opacity,transform,box-shadow] border-2 ${
                      !isFirstTimeDonor
                        ? "bg-red-700 text-white border-red-700 shadow-sm"
                        : "bg-white text-slate-600 border-slate-200 hover:border-red-200"
@@ -2798,7 +2859,7 @@ const EditProfileModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdate
                <span>{error}</span>
              </div>
            )}
-           <button type="submit" disabled={loading} className="w-full bg-red-700 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-red-800 active:scale-[0.99] disabled:opacity-50 uppercase tracking-widest text-xs transition-all duration-150">
+           <button type="submit" disabled={loading} className="w-full bg-red-700 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-red-800 active:scale-[0.99] disabled:opacity-50 uppercase tracking-widest text-xs transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150">
              {loading
                ? lang === "bn" ? "আপডেট হচ্ছে..." : "Updating..."
                : lang === "bn" ? "পরিবর্তন সংরক্ষণ করুন" : "Save Changes"}
@@ -2837,6 +2898,9 @@ const DonorProfile = () => {
   const [showEdit, setShowEdit] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
+  useBackClose(showEdit, () => setShowEdit(false));
+  useBackClose(confirmLogout, () => setConfirmLogout(false));
+
   useEffect(() => {
     if (location.state?.donor && isValidDonor(location.state.donor)) {
       setDonor(location.state.donor as Donor);
@@ -2870,7 +2934,7 @@ const DonorProfile = () => {
     safeRemoveItem("donor_session");
     safeRemoveItem("last_visit");
     setConfirmLogout(false);
-    navigate("/");
+    goBack(navigate);
   };
 
   if (!donor) return <div>{lang === "bn" ? "কোনো প্রোফাইল তথ্য পাওয়া যায়নি।" : "No profile data found."}</div>;
@@ -3043,14 +3107,14 @@ const DonorProfile = () => {
             <button 
               type="button"
               onClick={() => setShowEdit(true)} 
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-[background-color,border-color,color,opacity,transform,box-shadow] flex items-center justify-center gap-2"
             >
               {lang === "bn" ? "প্রোফাইল সম্পাদনা" : "Edit Profile"}
             </button>
             <button 
               type="button"
               onClick={() => setConfirmLogout(true)}
-              className="w-full py-2 text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-800 transition-all"
+              className="w-full py-2 text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-800 transition-[background-color,border-color,color,opacity,transform,box-shadow]"
             >
               {lang === "bn" ? "লগ আউট" : "Log Out"}
             </button>
@@ -3070,7 +3134,7 @@ const DonorProfile = () => {
       
       <div className="text-center pt-4">
         <button 
-          onClick={() => navigate("/")}
+          onClick={() => goBack(navigate)}
           className="text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-red-700 transition-colors"
         >
           {lang === "bn" ? "হোম পেজে ফিরে যান" : "Return to Dashboard"}

@@ -7,7 +7,8 @@ Firebase Firestore, and the help assistant answers from the built-in FAQ list.
 - `src/App.tsx` – screens (search, register, donor profile)
 - `src/services/api.ts` – all Firestore reads/writes for donors
 - `src/components/SideMenuPages.tsx` – side menu pages and the FAQ list (`BLOOD_DONATION_FAQS`)
-- `src/components/FaqAssistantModal.tsx` – offline assistant (uses `src/utils/faqSearch.ts`)
+- `src/components/FaqAssistantModal.tsx` – offline assistant with on-phone chat history (uses `src/utils/faqSearch.ts`)
+- `src/utils/` – back-button handling (`backStack.ts`, `navigation.ts`), swipe-to-open menu (`useSwipeRight.ts`), scroll lock
 - `src/firebase.ts` + `firebase-applet-config.json` – Firebase connection
 - `firestore.rules` – database security rules (paste into Firebase Console > Firestore > Rules)
 
