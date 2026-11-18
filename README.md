@@ -12,9 +12,20 @@ Firebase Firestore, and the help assistant answers from the built-in FAQ list.
 - `src/firebase.ts` + `firebase-applet-config.json` – Firebase connection
 - `firestore.rules` – database security rules (paste into Firebase Console > Firestore > Rules)
 
-## Build the APK
+## Support Us details
+Edit `src/config/support.ts` (one number for bKash/Nagad/Rocket + bank details), then rebuild.
+
+## Firebase rules
+Paste `firestore.rules` into Firebase Console > Firestore > Rules > Publish.
+It allows account deletion and the 24-hour OTP lock records (`otp_locks`).
+
+## Build the APK / AAB
 Push to GitHub, then Actions > "Build BloodLink APK" > Run workflow.
 Download `BloodLink-debug-apk` from the run's artifacts.
+
+For the signed Play Store file (`BloodLink-release-aab`) and a signed release APK, add these four
+repository secrets once (Settings > Secrets and variables > Actions): `KEYSTORE_BASE64`,
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Never commit the keystore file.
 
 ## Update the app
 Edit the code, push, and run the workflow again. Raise `versionCode` in

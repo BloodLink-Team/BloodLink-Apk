@@ -9,22 +9,23 @@ import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronLeft, Droplets, UserPlus, Search, Phone, MapPin, Calendar, User, Heart, ShieldCheck, AlertCircle, LogOut, X, Menu } from "lucide-react";
+import { ChevronLeft, Droplets, UserPlus, Search, Phone, MapPin, Calendar, User, Heart, ShieldCheck, AlertCircle, LogOut, Trash2, X, Menu } from "lucide-react";
 
-const FAST_TRANSITION = { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const };
-const PAGE_TRANSITION = { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const };
+const FAST_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
+const PAGE_TRANSITION = { duration: 0.2, ease: "easeOut" as const };
 
 // Types & Data
 import { Donor, BloodGroup, Gender, SearchScope } from "./types";
 import { LOCATION_DATA, getUpazilas } from "./data/locations";
 import { getLocationDistanceKm } from "./data/geoCoordinates";
-import { fetchDonors, registerDonor, sendOtp, verifyOtp, updateDonor, subscribeToDonors } from "./services/api";
+import { fetchDonors, registerDonor, sendOtp, verifyOtp, updateDonor, deleteDonor, subscribeToDonors, OtpError } from "./services/api";
+import { normalizeBdPhone } from "./utils/phone";
 import { SimplifiedDatePicker } from "./components/SimplifiedDatePicker";
 import { LanguageProvider, useLanguage, LanguageSwitch, Language } from "./i18n";
 import { useBackClose, closeTopOverlay } from "./utils/backStack";
 import { goBack, historyIndex } from "./utils/navigation";
 import { useSwipeRight } from "./utils/useSwipeRight";
-import { SideMenuDrawer, LearnAboutDonationView, BlogsPortalView, MeetOurTeamView, NationalHelplinesView, SupportUsView, HowToUseAppView } from "./components/SideMenuPages";
+import { SideMenuDrawer, LearnAboutDonationView, MeetOurTeamView, NationalHelplinesView, SupportUsView, HowToUseAppView } from "./components/SideMenuPages";
 
 // Components
 const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -251,7 +252,14 @@ const formatReadableDate = (dateStr?: string, lang: Language = "en") => {
   }
 };
 
-const getDonorEligibility = (lastDonationDate?: string, lang: Language = "en"): {
+/** Months a donor must wait between donations: 3 for males, 4 for females. */
+const getWaitMonths = (gender?: Gender): number => (gender === "Female" ? 4 : 3);
+
+const getDonorEligibility = (
+  lastDonationDate?: string,
+  lang: Language = "en",
+  gender?: Gender
+): {
   isEligible: boolean;
   nextEligibleDate: string | null;
   daysRemaining: number;
@@ -259,18 +267,19 @@ const getDonorEligibility = (lastDonationDate?: string, lang: Language = "en"): 
   if (!lastDonationDate || lastDonationDate === "Never") {
     return { isEligible: true, nextEligibleDate: null, daysRemaining: 0 };
   }
-  const lastDate = new Date(lastDonationDate).getTime();
-  if (isNaN(lastDate)) {
+  const lastDate = new Date(lastDonationDate);
+  if (isNaN(lastDate.getTime())) {
     return { isEligible: true, nextEligibleDate: null, daysRemaining: 0 };
   }
-  const oneHundredTwentyDays = 120 * 24 * 60 * 60 * 1000;
-  const nextEligibleTimestamp = lastDate + oneHundredTwentyDays;
+  const nextEligible = new Date(lastDate.getTime());
+  nextEligible.setMonth(nextEligible.getMonth() + getWaitMonths(gender));
+  const nextEligibleTimestamp = nextEligible.getTime();
   const now = Date.now();
   if (now >= nextEligibleTimestamp) {
     return { isEligible: true, nextEligibleDate: null, daysRemaining: 0 };
   }
   const daysRemaining = Math.ceil((nextEligibleTimestamp - now) / (24 * 60 * 60 * 1000));
-  const nextDateIso = new Date(nextEligibleTimestamp).toISOString().split("T")[0];
+  const nextDateIso = nextEligible.toISOString().split("T")[0];
   return {
     isEligible: false,
     nextEligibleDate: formatReadableDate(nextDateIso, lang),
@@ -278,8 +287,8 @@ const getDonorEligibility = (lastDonationDate?: string, lang: Language = "en"): 
   };
 };
 
-const isDonorEligible = (lastDonationDate?: string): boolean => {
-  return getDonorEligibility(lastDonationDate).isEligible;
+const isDonorEligible = (lastDonationDate?: string, gender?: Gender): boolean => {
+  return getDonorEligibility(lastDonationDate, "en", gender).isEligible;
 };
 
 const LogoutConfirmModal = ({
@@ -337,6 +346,94 @@ const LogoutConfirmModal = ({
             className="w-full bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs"
           >
             {lang === "bn" ? "লগ আউট" : "Log Out"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body
+  );
+};
+
+const DeleteAccountModal = ({
+  onConfirm,
+  onClose,
+}: {
+  onConfirm: () => Promise<void>;
+  onClose: () => void;
+}) => {
+  useLockBodyScroll();
+  const { lang } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const handleConfirm = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await onConfirm();
+    } catch {
+      setFailed(true);
+      setBusy(false);
+    }
+  };
+
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={FAST_TRANSITION}
+      onClick={busy ? undefined : onClose}
+      className="fixed inset-0 w-screen h-[100dvh] z-[110] flex items-center justify-center p-5 bg-slate-900/55 touch-none select-none"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 6 }}
+        transition={FAST_TRANSITION}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-[320px] rounded-3xl shadow-2xl border border-slate-100 overflow-hidden p-5 text-center space-y-4"
+      >
+        <div className="w-11 h-11 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto border border-red-100/80">
+          <Trash2 className="w-5 h-5" />
+        </div>
+
+        <div className="space-y-1">
+          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+            {lang === "bn" ? "অ্যাকাউন্ট ডিলিট করবেন?" : "Delete Account?"}
+          </h3>
+          <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+            {lang === "bn"
+              ? "আপনার সব তথ্য আমাদের সার্ভার থেকে স্থায়ীভাবে মুছে যাবে এবং আর ফিরিয়ে আনা যাবে না। চাইলে এই নম্বর দিয়ে পরে নতুন অ্যাকাউন্ট খুলতে পারবেন।"
+              : "All your data will be permanently removed from our server and can't be restored. You can create a new account with this number later."}
+          </p>
+          {failed && (
+            <p className="text-[11px] text-red-600 font-bold leading-relaxed pt-1">
+              {lang === "bn"
+                ? "ডিলিট করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।"
+                : "Couldn't delete. Check your connection and try again."}
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs disabled:opacity-50"
+          >
+            {lang === "bn" ? "বাতিল" : "Cancel"}
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={busy}
+            className="w-full bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs disabled:opacity-60"
+          >
+            {busy
+              ? lang === "bn" ? "মুছে ফেলা হচ্ছে..." : "Deleting..."
+              : lang === "bn" ? "ডিলিট করুন" : "Delete"}
           </button>
         </div>
       </motion.div>
@@ -489,10 +586,10 @@ const Home = () => {
         }
         setCurrentUser(user);
 
-        // Weekly check logic: 7 days cooldown, only for eligible donors (120+ days since last donation)
+        // Weekly check logic: 7 days cooldown, only for eligible donors (3 months for males, 4 for females)
         const lastVisit = safeGetItem("last_visit");
 
-        if (lastVisit && isDonorEligible(user.lastDonationDate)) {
+        if (lastVisit && isDonorEligible(user.lastDonationDate, user.gender)) {
           if (now - parseInt(lastVisit) > sevenDays) {
             setShowUpdatePrompt(true);
           }
@@ -600,12 +697,12 @@ const Home = () => {
           <span className="h-[1.5px] w-6 bg-red-200 rounded-full" aria-hidden="true" />
         </div>
 
-        {currentUser && !getDonorEligibility(currentUser.lastDonationDate, lang).isEligible && (
+        {currentUser && !getDonorEligibility(currentUser.lastDonationDate, lang, currentUser.gender).isEligible && (
           <div className="pt-0.5">
             <p className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl inline-block whitespace-nowrap">
               {lang === "bn"
-                ? `আবার রক্ত দিতে পারবেন: ${getDonorEligibility(currentUser.lastDonationDate, lang).nextEligibleDate}`
-                : `Eligible to donate again on ${getDonorEligibility(currentUser.lastDonationDate, lang).nextEligibleDate}`}
+                ? `আবার রক্ত দিতে পারবেন: ${getDonorEligibility(currentUser.lastDonationDate, lang, currentUser.gender).nextEligibleDate}`
+                : `Eligible to donate again on ${getDonorEligibility(currentUser.lastDonationDate, lang, currentUser.gender).nextEligibleDate}`}
             </p>
           </div>
         )}
@@ -775,8 +872,8 @@ const SplashScreen = () => {
         </div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.4 }}
           className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none"
         >
@@ -784,8 +881,8 @@ const SplashScreen = () => {
         </motion.h1>
 
         <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.4 }}
           className="flex items-center justify-center gap-2.5 mt-3"
         >
@@ -852,11 +949,11 @@ const NativeBackHandler: React.FC = () => {
   return null;
 };
 
-/** Re-keys on every page change so each page fades/slides in with a light CSS animation. */
+/** Re-mounts on every page change so each page fades in (see the page wrappers). */
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
   return (
-    <div key={location.pathname} className="page-enter">
+    <div key={location.pathname}>
       <Routes location={location}>
         <Route path="/" element={<HomeWrapper />} />
         <Route path="/register" element={<RegisterWrapper />} />
@@ -864,7 +961,6 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/donors" element={<ListWrapper />} />
         <Route path="/profile/:id" element={<ProfileWrapper />} />
         <Route path="/learn" element={<LearnWrapper />} />
-        <Route path="/blogs" element={<BlogsWrapper />} />
         <Route path="/team" element={<TeamWrapper />} />
         <Route path="/helplines" element={<HelplinesWrapper />} />
         <Route path="/support" element={<SupportWrapper />} />
@@ -874,72 +970,6 @@ const AnimatedRoutes: React.FC = () => {
       </Routes>
     </div>
   );
-};
-
-const SessionRouteTracker: React.FC = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const hasRestoredRef = useRef(false);
-
-  // Restore previous route on initial load if user landed on "/" from a background restart or shortcut
-  useEffect(() => {
-    if (hasRestoredRef.current) return;
-    hasRestoredRef.current = true;
-
-    try {
-      const lastRoute = safeGetItem("bloodlink_last_route");
-      const lastTimeStr = safeGetItem("bloodlink_last_route_time");
-      if (lastRoute && lastRoute !== "/" && lastTimeStr) {
-        const elapsed = Date.now() - parseInt(lastTimeStr, 10);
-        // If returning within 4 hours, restore the exact route and state
-        if (elapsed < 4 * 60 * 60 * 1000) {
-          if (location.pathname === "/") {
-            let restoredState = undefined;
-            try {
-              const savedState = safeGetItem("bloodlink_last_route_state");
-              if (savedState) restoredState = JSON.parse(savedState);
-            } catch {}
-            navigate(lastRoute, { state: restoredState, replace: true });
-          }
-        }
-      }
-    } catch {}
-  }, [navigate, location.pathname]);
-
-  // Track and save route whenever it changes
-  useEffect(() => {
-    try {
-      safeSetItem("bloodlink_last_route", location.pathname);
-      safeSetItem("bloodlink_last_route_time", Date.now().toString());
-      if (location.state) {
-        safeSetItem("bloodlink_last_route_state", JSON.stringify(location.state));
-      }
-    } catch {}
-  }, [location.pathname, location.state]);
-
-  // Handle visibilitychange & pagehide events to ensure state is committed before mobile OS suspends tab
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        try {
-          safeSetItem("bloodlink_last_route", location.pathname);
-          safeSetItem("bloodlink_last_route_time", Date.now().toString());
-          if (location.state) {
-            safeSetItem("bloodlink_last_route_state", JSON.stringify(location.state));
-          }
-        } catch {}
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("pagehide", handleVisibility);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("pagehide", handleVisibility);
-    };
-  }, [location.pathname, location.state]);
-
-  return null;
 };
 
 export default function App() {
@@ -967,7 +997,6 @@ export default function App() {
   return (
     <LanguageProvider>
       <BrowserRouter>
-        <SessionRouteTracker />
         <NativeBackHandler />
         <AnimatePresence>
           {showSplash && <SplashScreen />}
@@ -979,67 +1008,61 @@ export default function App() {
 }
 
 const HowToUseWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <HowToUseAppView />
   </motion.div>
 );
 
 const SupportWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <SupportUsView />
   </motion.div>
 );
 
 const HelplinesWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <NationalHelplinesView />
   </motion.div>
 );
 
 const LearnWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <LearnAboutDonationView />
   </motion.div>
 );
 
-const BlogsWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
-    <BlogsPortalView />
-  </motion.div>
-);
-
 const TeamWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <MeetOurTeamView />
   </motion.div>
 );
 
 const HomeWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <Home />
   </motion.div>
 );
 
 const RegisterWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <RegisterView />
   </motion.div>
 );
 
 const SearchWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <SearchView />
   </motion.div>
 );
 
 const ListWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <DonorListView />
   </motion.div>
 );
 
 const ProfileWrapper = () => (
-  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={PAGE_TRANSITION}>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
     <ProfileView />
   </motion.div>
 );
@@ -1118,8 +1141,8 @@ const RegisterView = () => {
       {existingDonor ? (
         <motion.div
           key="verified-existing"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={PAGE_TRANSITION}
           className="flex flex-col items-center justify-center space-y-4 py-20 bg-white rounded-3xl border border-slate-100"
         >
@@ -1138,8 +1161,8 @@ const RegisterView = () => {
       ) : step === "phone" ? (
         <motion.div
           key="phone-step"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={PAGE_TRANSITION}
         >
           <PhoneVerification onVerified={onVerified} />
@@ -1147,8 +1170,8 @@ const RegisterView = () => {
       ) : (
         <motion.div
           key="details-step"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={PAGE_TRANSITION}
         >
           <RegistrationForm initialPhone={phone} />
@@ -1159,7 +1182,7 @@ const RegisterView = () => {
 };
 
 const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: Donor | null) => void }) => {
-  const { lang } = useLanguage();
+  const { lang, n } = useLanguage();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -1167,10 +1190,31 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
   const [error, setError] = useState<string | null>(null);
   const [debugOtp, setDebugOtp] = useState<string | null>(null);
 
+  const otpErrorMessage = (err: unknown, fallbackBn: string, fallbackEn: string): string => {
+    if (err instanceof OtpError) {
+      if (err.code === "INVALID_PHONE") {
+        return lang === "bn" ? "অনুগ্রহ করে একটি সঠিক ফোন নম্বর দিন" : "Please enter a valid phone number";
+      }
+      if (err.code === "LOCKED") {
+        const hours = Math.max(1, Math.ceil(((err.lockedUntil ?? 0) - Date.now()) / 3600000));
+        return lang === "bn"
+          ? `ভুল ওটিপি ৩ বার দেওয়ায় এই নম্বরে আগামী ২৪ ঘণ্টা ওটিপি পাঠানো যাবে না। (প্রায় ${n(hours)} ঘণ্টা বাকি)`
+          : `Too many wrong OTP attempts. This number cannot get an OTP for 24 hours (about ${hours}h left).`;
+      }
+      if (err.code === "WRONG_OTP") {
+        const left = err.attemptsLeft ?? 0;
+        return lang === "bn"
+          ? `ভুল ওটিপি কোড। আর ${n(left)} বার চেষ্টা করতে পারবেন।`
+          : `Invalid OTP code. ${left} attempt${left === 1 ? "" : "s"} left.`;
+      }
+    }
+    return lang === "bn" ? fallbackBn : fallbackEn;
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.length < 11) {
-      setError(lang === "bn" ? "অনুগ্রহ করে একটি সঠিক ১১ ডিজিটের ফোন নম্বর দিন" : "Please enter a valid phone number");
+    if (!normalizeBdPhone(phone)) {
+      setError(lang === "bn" ? "অনুগ্রহ করে একটি সঠিক ফোন নম্বর দিন" : "Please enter a valid phone number");
       return;
     }
     setLoading(true);
@@ -1178,9 +1222,10 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
     try {
       const res = await sendOtp(phone);
       setIsOtpSent(true);
+      setOtp("");
       if (res.debugOtp) setDebugOtp(res.debugOtp);
     } catch (err) {
-      setError(lang === "bn" ? "ওটিপি পাঠানো যায়নি। আবার চেষ্টা করুন।" : "Failed to send OTP. Try again.");
+      setError(otpErrorMessage(err, "ওটিপি পাঠানো যায়নি। আবার চেষ্টা করুন।", "Failed to send OTP. Try again."));
     } finally {
       setLoading(false);
     }
@@ -1192,9 +1237,15 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
     setError(null);
     try {
       const res = await verifyOtp(phone, otp);
-      onVerified(phone, res.existingDonor);
+      onVerified(res.phone, res.existingDonor);
     } catch (err) {
-      setError(lang === "bn" ? "ভুল ওটিপি কোড। অনুগ্রহ করে যাচাই করে আবার চেষ্টা করুন।" : "Invalid OTP code. Please check and try again.");
+      setError(otpErrorMessage(err, "ভুল ওটিপি কোড। অনুগ্রহ করে যাচাই করে আবার চেষ্টা করুন।", "Invalid OTP code. Please check and try again."));
+      if (err instanceof OtpError && (err.code === "LOCKED" || err.code === "INVALID_PHONE")) {
+        // locked out: back to the phone step, no OTP can be requested for this number
+        setIsOtpSent(false);
+        setOtp("");
+        setDebugOtp(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -1235,6 +1286,8 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
                 required
                 disabled={isOtpSent}
                 type="tel"
+                inputMode="tel"
+                maxLength={18}
                 placeholder="01XXXXXXXXX"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-3 focus:ring-2 focus:ring-red-600 font-medium disabled:opacity-50"
                 value={phone}
@@ -1245,8 +1298,8 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
 
           {isOtpSent && (
             <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={FAST_TRANSITION}
             >
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block px-1">
@@ -1257,6 +1310,7 @@ const PhoneVerification = ({ onVerified }: { onVerified: (phone: string, donor: 
                   required
                   autoFocus
                   type="text"
+                  inputMode="numeric"
                   maxLength={6}
                   placeholder="· · · · · ·"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 text-center text-2xl font-black tracking-[0.5em] focus:ring-2 focus:ring-red-600"
@@ -1738,8 +1792,8 @@ const RegistrationForm = ({ initialPhone }: { initialPhone: string }) => {
 
       {error && (
         <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={FAST_TRANSITION}
           className="p-4 bg-red-50 text-red-700 rounded-2xl text-xs font-bold leading-relaxed border border-red-200 flex items-start gap-2.5 shadow-sm"
         >
@@ -1844,8 +1898,8 @@ const SearchForm = () => {
 
           {query.bloodGroup && (
             <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={FAST_TRANSITION}
               className="mt-3 px-3 py-2.5 bg-red-50/70 border border-red-100 rounded-xl flex items-center justify-between gap-2"
             >
@@ -2009,8 +2063,8 @@ const DonorList = () => {
       if (query) {
         // Sort by: (1) Available/Eligible first, (2) Real-world geographic distance (km) from searched Upazila/District
         const compareByProximity = (a: Donor, b: Donor) => {
-          const aEligible = isDonorEligible(a.lastDonationDate) ? 1 : 0;
-          const bEligible = isDonorEligible(b.lastDonationDate) ? 1 : 0;
+          const aEligible = isDonorEligible(a.lastDonationDate, a.gender) ? 1 : 0;
+          const bEligible = isDonorEligible(b.lastDonationDate, b.gender) ? 1 : 0;
           if (aEligible !== bEligible) {
             return bEligible - aEligible;
           }
@@ -2093,13 +2147,13 @@ const DonorList = () => {
       return formatReadableDate(dateStr, lang);
     };
 
-    const eligibility = getDonorEligibility(donor.lastDonationDate, lang);
+    const eligibility = getDonorEligibility(donor.lastDonationDate, lang, donor.gender);
 
     return (
       <motion.div
         key={donor.id}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={FAST_TRANSITION}
         onClick={() => navigate(`/profile/${donor.id}`, { state: { donor, fromSearch: true } })}
         className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:border-red-200 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] duration-150"
@@ -2249,8 +2303,8 @@ const DonorList = () => {
 
     return (
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={FAST_TRANSITION}
         className="bg-red-50/80 border-2 border-red-200 rounded-3xl p-5 text-center space-y-3.5 shadow-sm"
       >
@@ -2486,8 +2540,8 @@ const DonorList = () => {
             )
           ) : (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={FAST_TRANSITION}
               className="text-center py-14 px-6 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center"
             >
@@ -2691,9 +2745,9 @@ const EditProfileModal = ({ donor, onUpdate, onClose }: { donor: Donor, onUpdate
       className="fixed inset-0 w-screen h-[100dvh] z-[110] bg-slate-900/55 flex items-end sm:items-center justify-center"
     >
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         transition={FAST_TRANSITION}
         onClick={(e) => e.stopPropagation()}
         className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 max-h-[90dvh] overflow-y-auto overscroll-contain"
@@ -2897,9 +2951,11 @@ const DonorProfile = () => {
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useBackClose(showEdit, () => setShowEdit(false));
   useBackClose(confirmLogout, () => setConfirmLogout(false));
+  useBackClose(confirmDelete, () => setConfirmDelete(false));
 
   useEffect(() => {
     if (location.state?.donor && isValidDonor(location.state.donor)) {
@@ -2937,9 +2993,19 @@ const DonorProfile = () => {
     goBack(navigate);
   };
 
+  const handleDeleteAccount = async () => {
+    if (!donor) return;
+    await deleteDonor(donor.phone); // throws if it fails, the dialog then shows an error
+    safeRemoveItem("donor_session");
+    safeRemoveItem("last_visit");
+    safeRemoveItem("pending_reg_phone");
+    setConfirmDelete(false);
+    navigate("/", { replace: true });
+  };
+
   if (!donor) return <div>{lang === "bn" ? "কোনো প্রোফাইল তথ্য পাওয়া যায়নি।" : "No profile data found."}</div>;
 
-  const eligibility = getDonorEligibility(donor.lastDonationDate, lang);
+  const eligibility = getDonorEligibility(donor.lastDonationDate, lang, donor.gender);
 
   return (
     <div className="space-y-6">
@@ -2958,6 +3024,12 @@ const DonorProfile = () => {
           <LogoutConfirmModal
             onConfirm={handleLogout}
             onClose={() => setConfirmLogout(false)}
+          />
+        )}
+        {confirmDelete && (
+          <DeleteAccountModal
+            onConfirm={handleDeleteAccount}
+            onClose={() => setConfirmDelete(false)}
           />
         )}
       </AnimatePresence>
@@ -3117,6 +3189,14 @@ const DonorProfile = () => {
               className="w-full py-2 text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-800 transition-[background-color,border-color,color,opacity,transform,box-shadow]"
             >
               {lang === "bn" ? "লগ আউট" : "Log Out"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="w-full py-2 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-red-700 transition-[background-color,border-color,color,opacity,transform,box-shadow] flex items-center justify-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {lang === "bn" ? "অ্যাকাউন্ট ডিলিট" : "Delete Account"}
             </button>
           </div>
         )}

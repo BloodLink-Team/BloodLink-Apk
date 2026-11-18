@@ -22,9 +22,11 @@ import {
   Play,
   Youtube,
 } from "lucide-react";
-import { useLanguage, LanguageSwitch, Language, toBnNumber } from "../i18n";
+import { useLanguage, LanguageSwitch, Language } from "../i18n";
 import { searchBloodFaqs } from "../utils/faqSearch";
 import { goBack } from "../utils/navigation";
+import { openExternal } from "../utils/openExternal";
+import { MOBILE_BANKING_NUMBER, BANK_DETAILS } from "../config/support";
 import { useScrollLock } from "../utils/scrollLock";
 import { FaqAssistantModal } from "./FaqAssistantModal";
 
@@ -113,7 +115,7 @@ export const SupportTakaHandsIcon: React.FC<{ className?: string }> = ({
 );
 
 // Set your external blog website URL here when ready (e.g. "https://yourblog.com")
-export const BLOG_WEBSITE_URL = "";
+export const BLOG_WEBSITE_URL = "https://hr-suchock.github.io/BloodLink/";
 
 export interface HelplineItem {
   id: string;
@@ -238,9 +240,9 @@ export const BLOOD_DONATION_FAQS: BloodFaqItem[] = [
     questionEn: "How often can someone donate blood?",
     questionBn: "কত দিন পর পর রক্ত দেওয়া যায়?",
     answerEn:
-      "A healthy person can safely donate whole blood every 120 days (4 months), up to 3 times a year.",
+      "A healthy person can safely donate whole blood every 3 months (90 days) for males and every 4 months (120 days) for females.",
     answerBn:
-      "একজন সুস্থ মানুষ প্রতি ১২০ দিন (৪ মাস) পর পর, অর্থাৎ বছরে সর্বোচ্চ ৩ বার নিরাপদে রক্ত দিতে পারেন।",
+      "একজন সুস্থ মানুষ পুরুষদের ক্ষেত্রে প্রতি ৩ মাস (৯০ দিন) এবং নারীদের ক্ষেত্রে প্রতি ৪ মাস (১২০ দিন) পর পর নিরাপদে রক্ত দিতে পারেন।",
   },
   {
     id: "faq-3",
@@ -334,12 +336,12 @@ export const BLOOD_DONATION_FAQS: BloodFaqItem[] = [
   },
   {
     id: "faq-13",
-    questionEn: "What happens if someone donates blood more than once in 120 days?",
+    questionEn: "What happens if someone donates blood again before the waiting period ends?",
     questionBn: "১২০ দিনের মধ্যে একের অধিকবার রক্ত দিলে কী হয়?",
     answerEn:
-      "Donating before 120 days prevents your body from fully restoring its red blood cells and iron reserves, which can lead to iron-deficiency anemia, weakness, and chronic fatigue.",
+      "Donating before the waiting period (3 months for males, 4 months for females) ends prevents your body from fully restoring its red blood cells and iron reserves, which can lead to iron-deficiency anemia, weakness, and chronic fatigue.",
     answerBn:
-      "১২০ দিনের আগে বারবার রক্ত দিলে শরীর লোহিত রক্তকণিকা ও আয়রনের ঘাটতি পূরণ করার সময় পায় না, ফলে রক্তস্বল্পতা (অ্যানিমিয়া), ক্লান্তি ও শারীরিক দুর্বলতা দেখা দিতে পারে।",
+      "নির্ধারিত বিরতির (পুরুষ ৩ মাস, নারী ৪ মাস) আগে বারবার রক্ত দিলে শরীর লোহিত রক্তকণিকা ও আয়রনের ঘাটতি পূরণ করার সময় পায় না, ফলে রক্তস্বল্পতা (অ্যানিমিয়া), ক্লান্তি ও শারীরিক দুর্বলতা দেখা দিতে পারে।",
   },
   {
     id: "faq-14",
@@ -1038,40 +1040,22 @@ export const SideMenuDrawer: React.FC<{
             </button>
 
             {/* Option 2: Read Our Blogs */}
-            {BLOG_WEBSITE_URL ? (
-              <a
-                href={BLOG_WEBSITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onClose}
-                className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-red-100/80 text-[#c80000] flex items-center justify-center shrink-0 group-hover:bg-[#c80000] group-hover:text-white transition-colors">
-                  <Newspaper className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0 font-bold text-sm text-slate-800 leading-snug">
-                  {lang === "bn" ? "আমাদের ব্লগ পড়ুন" : "Read Our Blogs"}
-                </div>
-                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#c80000] shrink-0" />
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  navigate("/blogs");
-                }}
-                className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-red-100/80 text-[#c80000] flex items-center justify-center shrink-0 group-hover:bg-[#c80000] group-hover:text-white transition-colors">
-                  <Newspaper className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0 font-bold text-sm text-slate-800 leading-snug">
-                  {lang === "bn" ? "আমাদের ব্লগ পড়ুন" : "Read Our Blogs"}
-                </div>
-                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#c80000] shrink-0" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                void openExternal(BLOG_WEBSITE_URL);
+              }}
+              className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-red-100/80 text-[#c80000] flex items-center justify-center shrink-0 group-hover:bg-[#c80000] group-hover:text-white transition-colors">
+                <Newspaper className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0 font-bold text-sm text-slate-800 leading-snug">
+                {lang === "bn" ? "আমাদের ব্লগ পড়ুন" : "Read Our Blogs"}
+              </div>
+              <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#c80000] shrink-0" />
+            </button>
 
             {/* Option 3: National Helpline Numbers */}
             <button
@@ -1178,7 +1162,6 @@ const PageSubHeader: React.FC<{
 export const LearnAboutDonationView: React.FC = () => {
   // Primarily starts in Bangla ("bn") upon entering the FAQ section, even if English is selected as the global app language
   const [faqLang, setFaqLang] = useState<Language>("bn");
-  const n = (val: string | number) => toBnNumber(val, faqLang);
 
   const [openIds, setOpenIds] = useState<Set<string>>(
     () => new Set([BLOOD_DONATION_FAQS[0]?.id || ""])
@@ -1335,11 +1318,7 @@ export const LearnAboutDonationView: React.FC = () => {
         {/* Count & Expand/Collapse All */}
         {filteredFaqs.length > 0 && (
           <div className="flex items-center justify-between px-1 text-xs">
-            <span className="text-[11px] font-bold text-slate-500">
-              {faqLang === "bn"
-                ? `মোট ${n(filteredFaqs.length)}টি প্রশ্ন`
-                : `${filteredFaqs.length} Questions`}
-            </span>
+            <span />
             <button
               type="button"
               onClick={toggleAll}
@@ -1544,53 +1523,6 @@ export const MeetOurTeamView: React.FC = () => {
   );
 };
 
-export const BlogsPortalView: React.FC = () => {
-  const { lang } = useLanguage();
-
-  return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
-      <PageSubHeader title={lang === "bn" ? "আমাদের ব্লগ" : "Read Our Blogs"} />
-      <main className="max-w-md mx-auto p-5 pb-24 space-y-4">
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-red-50 text-[#c80000] border border-red-100 flex items-center justify-center mx-auto">
-            <Newspaper className="w-7 h-7" />
-          </div>
-          <div className="space-y-1.5">
-            <h2 className="text-lg font-extrabold text-slate-900">
-              {lang === "bn" ? "BloodLink ব্লগ ওয়েবসাইট" : "BloodLink Blog Website"}
-            </h2>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              {lang === "bn"
-                ? "রক্তদান বিষয়ক নিবন্ধ, স্বাস্থ্য পরামর্শ এবং জীবন বাঁচানোর বাস্তব গল্প পড়তে আমাদের ব্লগ ওয়েবসাইটে ভিজিট করুন।"
-                : "Read articles on blood donation, health tips, and real-life stories of donors and survivors on our blog website."}
-            </p>
-          </div>
-
-          {BLOG_WEBSITE_URL ? (
-            <a
-              href={BLOG_WEBSITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#c80000] text-white font-bold py-3 px-5 rounded-xl shadow-sm hover:bg-red-800 active:scale-[0.99] transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs"
-            >
-              <span>
-                {lang === "bn" ? "ব্লগ ওয়েবসাইটে যান" : "Open Blog Website"}
-              </span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          ) : (
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-semibold">
-              {lang === "bn"
-                ? "আপনার ব্লগ ওয়েবসাইটের লিংক (URL) দিলে এখানে সরাসরি যুক্ত করে দেওয়া হবে।"
-                : "Share your blog website URL whenever ready and this button will take users directly there."}
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-};
-
 export const NationalHelplinesView: React.FC = () => {
   const { lang } = useLanguage();
 
@@ -1661,36 +1593,25 @@ export const NationalHelplinesView: React.FC = () => {
   );
 };
 
-export interface SupportMethod {
-  id: string;
-  providerEn: string;
-  providerBn: string;
-  typeEn: string;
-  typeBn: string;
-  number: string;
-  colorClass: string;
-}
-
-export const SUPPORT_METHODS: SupportMethod[] = [
-  {
-    id: "bkash",
-    providerEn: "bKash",
-    providerBn: "বিকাশ (bKash)",
-    typeEn: "Personal / Send Money",
-    typeBn: "পার্সোনাল / সেন্ড মানি",
-    number: "01XXXXXXXXX",
-    colorClass: "bg-pink-50 text-pink-700 border-pink-200",
-  },
-  {
-    id: "nagad",
-    providerEn: "Nagad",
-    providerBn: "নগদ (Nagad)",
-    typeEn: "Personal / Send Money",
-    typeBn: "পার্সোনাল / সেন্ড মানি",
-    number: "01XXXXXXXXX",
-    colorClass: "bg-orange-50 text-orange-700 border-orange-200",
-  },
-];
+export const CopyButton: React.FC<{ copied: boolean; onCopy: () => void; lang: Language }> = ({ copied, onCopy, lang }) => (
+  <button
+    type="button"
+    onClick={onCopy}
+    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:border-red-200 hover:text-[#c80000] active:scale-95 transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs shrink-0"
+  >
+    {copied ? (
+      <>
+        <Check className="w-3.5 h-3.5 text-emerald-600" />
+        <span className="text-emerald-700">{lang === "bn" ? "কপি হয়েছে" : "Copied"}</span>
+      </>
+    ) : (
+      <>
+        <Copy className="w-3.5 h-3.5" />
+        <span>{lang === "bn" ? "কপি" : "Copy"}</span>
+      </>
+    )}
+  </button>
+);
 
 export const SupportUsView: React.FC = () => {
   const { lang, n } = useLanguage();
@@ -1731,58 +1652,75 @@ export const SupportUsView: React.FC = () => {
           </p>
         </div>
 
-        {/* Mobile Banking Support Cards */}
+        {/* Mobile banking: one number for bKash, Nagad and Rocket */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-3.5">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-            {lang === "bn" ? "মোবাইল ব্যাংকিং সহায়তা" : "Mobile Banking Support"}
+            {lang === "bn" ? "মোবাইল ব্যাংকিং সহায়তা" : "Mobile Banking Support"}
           </h3>
 
-          <div className="space-y-2.5">
-            {SUPPORT_METHODS.map((item) => {
-              const isCopied = copiedId === item.id;
-              return (
-                <div
-                  key={item.id}
-                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md border ${item.colorClass}`}
-                      >
-                        {lang === "bn" ? item.providerBn : item.providerEn}
-                      </span>
-                      <span className="text-[10px] font-semibold text-slate-400">
-                        {lang === "bn" ? item.typeBn : item.typeEn}
-                      </span>
-                    </div>
-                    <div className="font-extrabold text-sm text-slate-900 tracking-wide pt-1">
-                      {lang === "bn" ? n(item.number) : item.number}
-                    </div>
-                  </div>
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3">
+            <div className="space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md border bg-pink-50 text-pink-700 border-pink-200">
+                  {lang === "bn" ? "বিকাশ" : "bKash"}
+                </span>
+                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md border bg-orange-50 text-orange-700 border-orange-200">
+                  {lang === "bn" ? "নগদ" : "Nagad"}
+                </span>
+                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md border bg-purple-50 text-purple-700 border-purple-200">
+                  {lang === "bn" ? "রকেট" : "Rocket"}
+                </span>
+              </div>
+              <div className="text-[10px] font-semibold text-slate-400">
+                {lang === "bn" ? "পার্সোনাল / সেন্ড মানি" : "Personal / Send Money"}
+              </div>
+              <div className="font-extrabold text-sm text-slate-900 tracking-wide">
+                {lang === "bn" ? n(MOBILE_BANKING_NUMBER) : MOBILE_BANKING_NUMBER}
+              </div>
+            </div>
+            <CopyButton
+              copied={copiedId === "mobile"}
+              onCopy={() => handleCopy("mobile", MOBILE_BANKING_NUMBER)}
+              lang={lang}
+            />
+          </div>
+        </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(item.id, item.number)}
-                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:border-red-200 hover:text-[#c80000] active:scale-95 transition-[background-color,border-color,color,opacity,transform,box-shadow] text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs shrink-0"
-                  >
-                    {isCopied ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-emerald-700">
-                          {lang === "bn" ? "কপি হয়েছে" : "Copied"}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{lang === "bn" ? "কপি" : "Copy"}</span>
-                      </>
-                    )}
-                  </button>
+        {/* Bank details */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-3.5">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+            {lang === "bn" ? "ব্যাংক অ্যাকাউন্ট" : "Bank Account"}
+          </h3>
+
+          <div className="rounded-2xl bg-slate-50 border border-slate-200/80 divide-y divide-slate-200/70">
+            {[
+              { label: lang === "bn" ? "ব্যাংকের নাম" : "Bank Name", value: BANK_DETAILS.bankName },
+              { label: lang === "bn" ? "অ্যাকাউন্টের নাম" : "Account Name", value: BANK_DETAILS.accountName },
+              { label: lang === "bn" ? "শাখা" : "Branch", value: BANK_DETAILS.branch },
+              ...(BANK_DETAILS.routingNumber
+                ? [{ label: lang === "bn" ? "রাউটিং নম্বর" : "Routing Number", value: BANK_DETAILS.routingNumber }]
+                : []),
+            ].map((row) => (
+              <div key={row.label} className="px-3.5 py-2.5">
+                <div className="text-[10px] font-semibold text-slate-400">{row.label}</div>
+                <div className="text-sm font-bold text-slate-900 break-words">{row.value}</div>
+              </div>
+            ))}
+            <div className="px-3.5 py-2.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold text-slate-400">
+                  {lang === "bn" ? "অ্যাকাউন্ট নম্বর" : "Account Number"}
                 </div>
-              );
-            })}
+                <div className="text-sm font-extrabold text-slate-900 tracking-wide break-all">
+                  {lang === "bn" ? n(BANK_DETAILS.accountNumber) : BANK_DETAILS.accountNumber}
+                </div>
+              </div>
+              <CopyButton
+                copied={copiedId === "bank"}
+                onCopy={() => handleCopy("bank", BANK_DETAILS.accountNumber)}
+                lang={lang}
+              />
+            </div>
           </div>
         </div>
       </main>

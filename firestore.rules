@@ -69,7 +69,25 @@ service cloud.firestore {
           'timesDonated', 'isActive'
         ])
       );
-      allow delete: if false;
+      allow delete: if isValidId(donorId);
+    }
+
+    // Phones locked out of OTP for 24 hours after 3 wrong codes.
+    // Anyone can read a lock; a lock can only be created, or replaced once it has expired.
+    function validLock(data) {
+      return data.keys().hasOnly(['phone', 'lockedUntil']) &&
+        data.phone is string && data.phone.matches('^[0-9]{11,13}$') &&
+        data.lockedUntil is number &&
+        data.lockedUntil > request.time.toMillis() &&
+        data.lockedUntil <= request.time.toMillis() + 90000000;
+    }
+
+    match /otp_locks/{phoneId} {
+      allow get: if isValidId(phoneId);
+      allow list, delete: if false;
+      allow create: if isValidId(phoneId) && validLock(incoming()) && incoming().phone == phoneId;
+      allow update: if isValidId(phoneId) && validLock(incoming()) && incoming().phone == phoneId
+        && existing().lockedUntil <= request.time.toMillis();
     }
   }
 }

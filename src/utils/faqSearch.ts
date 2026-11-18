@@ -17,7 +17,7 @@ const SYNONYM_CLUSTERS: string[][] = [
   ],
   [
     "often", "interval", "gap", "frequency", "days", "months", "120", "four", "4", "again",
-    "কত দিন", "কতদিন", "পর পর", "বিরতি", "১২০", "৪ মাস", "মাস", "কতবার", "বারবার",
+    "কত দিন", "কতদিন", "পর পর", "বিরতি", "১২০", "৯০", "৩ মাস", "৪ মাস", "মাস", "কতবার", "বারবার",
     "koto din", "kotodin", "koto mas", "por por", "biroti", "barbar",
   ],
   [
