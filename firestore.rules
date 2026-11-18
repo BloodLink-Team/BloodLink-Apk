@@ -31,15 +31,10 @@ service cloud.firestore {
       ]) &&
       data.id is string && data.id.size() >= 1 && data.id.size() <= 64 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
       data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
-      data.gender is string && data.gender.size() <= 16 && (data.gender == 'Male' || data.gender == 'Female') &&
+      data.gender is string && data.gender.size() <= 16 && data.gender in ['Male', 'Female'] &&
       data.dob is string && data.dob.size() <= 32 &&
       data.weight is number && data.weight >= 0 && data.weight <= 300 &&
-      data.bloodGroup is string && data.bloodGroup.size() <= 8 && (
-        data.bloodGroup == 'A+' || data.bloodGroup == 'A-' ||
-        data.bloodGroup == 'B+' || data.bloodGroup == 'B-' ||
-        data.bloodGroup == 'AB+' || data.bloodGroup == 'AB-' ||
-        data.bloodGroup == 'O+' || data.bloodGroup == 'O-'
-      ) &&
+      data.bloodGroup is string && data.bloodGroup.size() <= 8 && data.bloodGroup in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] &&
       data.division is string && data.division.size() >= 1 && data.division.size() <= 64 &&
       data.district is string && data.district.size() >= 1 && data.district.size() <= 64 &&
       data.upazila is string && data.upazila.size() >= 1 && data.upazila.size() <= 64 &&
