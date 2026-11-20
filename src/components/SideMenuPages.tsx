@@ -21,6 +21,7 @@ import {
   Search,
   Play,
   Youtube,
+  Gamepad2,
 } from "lucide-react";
 import { useLanguage, LanguageSwitch, Language } from "../i18n";
 import { searchBloodFaqs } from "../utils/faqSearch";
@@ -1075,6 +1076,24 @@ export const SideMenuDrawer: React.FC<{
               <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#c80000] shrink-0" />
             </button>
 
+            {/* Option: Games */}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                navigate("/games");
+              }}
+              className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-red-100/80 text-[#c80000] flex items-center justify-center shrink-0 group-hover:bg-[#c80000] group-hover:text-white transition-colors">
+                <Gamepad2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0 font-bold text-sm text-slate-800 leading-snug">
+                {lang === "bn" ? "গেমস (টাইমপাস)" : "Games (Take a Break)"}
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#c80000] shrink-0" />
+            </button>
+
             {/* Option 4: Support Us */}
             <button
               type="button"
@@ -1110,7 +1129,7 @@ export const SideMenuDrawer: React.FC<{
   );
 });
 
-const PageSubHeader: React.FC<{
+export const PageSubHeader: React.FC<{
   title: string;
   showLanguageSwitch?: boolean;
   currentLang?: Language;

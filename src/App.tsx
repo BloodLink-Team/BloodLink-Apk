@@ -25,6 +25,9 @@ import { LanguageProvider, useLanguage, LanguageSwitch, Language } from "./i18n"
 import { useBackClose, closeTopOverlay } from "./utils/backStack";
 import { goBack, historyIndex } from "./utils/navigation";
 import { useSwipeRight } from "./utils/useSwipeRight";
+import { BadgeCard, BadgeChip } from "./components/Badges";
+import { todayIso } from "./utils/badges";
+import { GamesHomeView, RescueRushView, BloodMatchView } from "./components/Games";
 import { SideMenuDrawer, LearnAboutDonationView, MeetOurTeamView, NationalHelplinesView, SupportUsView, HowToUseAppView } from "./components/SideMenuPages";
 
 // Components
@@ -964,6 +967,9 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/team" element={<TeamWrapper />} />
         <Route path="/helplines" element={<HelplinesWrapper />} />
         <Route path="/support" element={<SupportWrapper />} />
+        <Route path="/games" element={<GamesWrapper />} />
+        <Route path="/games/rescue-rush" element={<RescueRushWrapper />} />
+        <Route path="/games/blood-match" element={<BloodMatchWrapper />} />
         <Route path="/how-to-use" element={<HowToUseWrapper />} />
         <Route path="/tutorial" element={<HowToUseWrapper />} />
         <Route path="*" element={<HomeWrapper />} />
@@ -3045,6 +3051,7 @@ const DonorProfile = () => {
 
         <div className="space-y-1 relative z-10">
           <h3 className="text-2xl font-black text-slate-800 tracking-tight">{donor.name}</h3>
+          <BadgeChip times={donor.timesDonated} />
         </div>
 
         <div className="grid grid-cols-1 py-2">
@@ -3174,6 +3181,24 @@ const DonorProfile = () => {
           </div>
         </div>
 
+        <BadgeCard
+          donor={donor}
+          isOwnProfile={isOwnProfile}
+          canAddDonation={eligibility.isEligible}
+          nextEligibleDate={eligibility.nextEligibleDate ?? undefined}
+          onAddDonation={async () => {
+            const times = (Number(donor.timesDonated) || 0) + 1;
+            const patch = { lastDonationDate: todayIso(), timesDonated: times };
+            await Promise.race([
+              updateDonor(donor.phone, patch),
+              new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 15000)),
+            ]);
+            const updated = { ...donor, ...patch };
+            setDonor(updated);
+            safeSetItem("donor_session", JSON.stringify(updated));
+          }}
+        />
+
         {isOwnProfile && (
           <div className="pt-2 flex flex-col gap-3 relative z-10">
             <button 
@@ -3223,3 +3248,21 @@ const DonorProfile = () => {
     </div>
   );
 };
+
+const GamesWrapper = () => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
+    <GamesHomeView />
+  </motion.div>
+);
+
+const RescueRushWrapper = () => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
+    <RescueRushView />
+  </motion.div>
+);
+
+const BloodMatchWrapper = () => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={PAGE_TRANSITION}>
+    <BloodMatchView />
+  </motion.div>
+);
