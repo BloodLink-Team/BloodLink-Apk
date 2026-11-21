@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Droplets, Layers, Trophy } from "lucide-react";
+import { ChevronRight, Droplets, Layers, Trophy, Volume2, VolumeX } from "lucide-react";
+import { isMuted, setMuted, sfx } from "../utils/gameSound";
 import { useLanguage } from "../i18n";
 import { PageSubHeader } from "./SideMenuPages";
 
@@ -32,6 +33,51 @@ const Note: React.FC = () => {
         : "Games work offline. Scores stay on this phone. For entertainment only, not medical advice."}
     </p>
   );
+};
+
+/** Sound on/off button shown in each game. */
+const MuteButton: React.FC = () => {
+  const { lang } = useLanguage();
+  const [m, setM] = useState(isMuted());
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setMuted(!m);
+        setM(!m);
+        if (m) sfx.unlock();
+      }}
+      aria-label={m ? (lang === "bn" ? "সাউন্ড চালু করুন" : "Turn sound on") : lang === "bn" ? "সাউন্ড বন্ধ করুন" : "Turn sound off"}
+      className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200"
+    >
+      {m ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+    </button>
+  );
+};
+
+/** Stops Android's long-press buzz / menu while a finger is held on a control. */
+function useNoLongPress(refs: React.RefObject<HTMLElement | null>[]) {
+  useEffect(() => {
+    const els = refs.map((r) => r.current).filter(Boolean) as HTMLElement[];
+    const stop = (e: Event) => e.preventDefault();
+    els.forEach((el) => {
+      el.addEventListener("touchstart", stop, { passive: false });
+      el.addEventListener("contextmenu", stop);
+    });
+    return () =>
+      els.forEach((el) => {
+        el.removeEventListener("touchstart", stop);
+        el.removeEventListener("contextmenu", stop);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
+const NO_CALLOUT: React.CSSProperties = {
+  touchAction: "none",
+  WebkitTouchCallout: "none",
+  WebkitUserSelect: "none",
+  userSelect: "none",
 };
 
 export const GamesHomeView: React.FC = () => {
@@ -118,6 +164,9 @@ export const RescueRushView: React.FC = () => {
   const [best, setBest] = useState<number>(() => readBest(RUSH_KEY) ?? 0);
   const [newBest, setNewBest] = useState(false);
   const H = 250;
+  const leftBtn = useRef<HTMLButtonElement>(null);
+  const rightBtn = useRef<HTMLButtonElement>(null);
+  useNoLongPress([canvasRef, leftBtn, rightBtn]);
 
   const width = () => (canvasRef.current ? canvasRef.current.width / g.current.ratio : 320);
 
@@ -164,18 +213,36 @@ export const RescueRushView: React.FC = () => {
         ctx.arc(-o.r * 0.25, -o.r * 0.1, Math.max(2, o.r * 0.16), 0, Math.PI * 2);
         ctx.fill();
       } else {
-        ctx.fillStyle = "#e7f7f0";
+        // Corona-style germ: round body, spikes with round tips, a few spots
+        const r = o.r;
         ctx.strokeStyle = "#078e69";
         ctx.lineWidth = 2;
-        rrect(-o.r * 0.82, -o.r * 0.82, o.r * 1.64, o.r * 1.64, 5);
+        ctx.fillStyle = "#078e69";
+        for (let i = 0; i < 12; i++) {
+          const a = (i * Math.PI * 2) / 12;
+          const x1 = Math.cos(a) * r * 0.9;
+          const y1 = Math.sin(a) * r * 0.9;
+          const x2 = Math.cos(a) * r * 1.35;
+          const y2 = Math.sin(a) * r * 1.35;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * r * 1.5, Math.sin(a) * r * 1.5, r * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = "#3fc79a";
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = "#078e69";
-        ctx.font = "900 " + Math.max(10, o.r * 1.15) + "px system-ui";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("!", 0, 1);
-        ctx.textBaseline = "alphabetic";
+        [[-0.35, -0.3, 0.18], [0.3, -0.1, 0.14], [-0.05, 0.38, 0.16]].forEach(([dx, dy, rr]) => {
+          ctx.beginPath();
+          ctx.arc(dx * r, dy * r, rr * r, 0, Math.PI * 2);
+          ctx.fill();
+        });
       }
       ctx.restore();
     }
@@ -221,6 +288,7 @@ export const RescueRushView: React.FC = () => {
   const finish = useCallback(() => {
     stop();
     const s = g.current;
+    sfx.over();
     setState("over");
     setHud({ score: s.score, lives: s.lives, seconds: s.seconds });
     const prev = readBest(RUSH_KEY) ?? 0;
@@ -250,7 +318,7 @@ export const RescueRushView: React.FC = () => {
         s.objs.push({
           x: 18 + Math.random() * (w - 36),
           y: -18,
-          r: germ ? 9 : 11,
+          r: germ ? 10 : 11,
           type: germ ? "germ" : "drop",
           speed: 1.35 + Math.random() * 1.15 + s.score * 0.012,
         });
@@ -262,8 +330,13 @@ export const RescueRushView: React.FC = () => {
       let changed = false;
       s.objs = s.objs.filter((o) => {
         if (o.y > H - 43 && o.y < H - 7 && Math.abs(o.x - s.basketX) < 29) {
-          if (o.type === "drop") s.score += 10;
-          else s.lives--;
+          if (o.type === "drop") {
+            s.score += 10;
+            sfx.catchDrop();
+          } else {
+            s.lives--;
+            sfx.hitGerm();
+          }
           changed = true;
           return false;
         }
@@ -291,6 +364,8 @@ export const RescueRushView: React.FC = () => {
     s.last = 0;
     s.basketX = width() / 2;
     s.active = true;
+    sfx.unlock();
+    sfx.start();
     setNewBest(false);
     setState("playing");
     setHud({ score: 0, lives: 3, seconds: 30 });
@@ -352,9 +427,10 @@ export const RescueRushView: React.FC = () => {
           <span>{lang === "bn" ? `সময়: ${n(hud.seconds)}` : `Time: ${hud.seconds}s`}</span>
           <span className="text-red-700">{lang === "bn" ? `স্কোর: ${n(hud.score)}` : `Score: ${hud.score}`}</span>
           <span className="text-red-600">{"❤".repeat(Math.max(0, hud.lives)) || "—"}</span>
+          <MuteButton />
         </div>
 
-        <div ref={arenaRef} className="relative rounded-3xl overflow-hidden border border-slate-200 bg-white" style={{ touchAction: "none" }}>
+        <div ref={arenaRef} className="relative rounded-3xl overflow-hidden border border-slate-200 bg-white select-none" style={NO_CALLOUT}>
           <canvas
             ref={canvasRef}
             className="block w-full"
@@ -393,17 +469,21 @@ export const RescueRushView: React.FC = () => {
         <div className="flex gap-3">
           <button
             type="button"
+            ref={leftBtn}
             {...hold("left")}
-            className="flex-1 py-4 rounded-2xl bg-white border border-slate-200 font-black text-sm active:bg-slate-100"
-            style={{ touchAction: "none" }}
+            onContextMenu={(e) => e.preventDefault()}
+            className="flex-1 py-4 rounded-2xl bg-white border border-slate-200 font-black text-sm active:bg-slate-100 select-none"
+            style={NO_CALLOUT}
           >
             ← {lang === "bn" ? "বাম" : "Left"}
           </button>
           <button
             type="button"
+            ref={rightBtn}
             {...hold("right")}
-            className="flex-1 py-4 rounded-2xl bg-white border border-slate-200 font-black text-sm active:bg-slate-100"
-            style={{ touchAction: "none" }}
+            onContextMenu={(e) => e.preventDefault()}
+            className="flex-1 py-4 rounded-2xl bg-white border border-slate-200 font-black text-sm active:bg-slate-100 select-none"
+            style={NO_CALLOUT}
           >
             {lang === "bn" ? "ডান" : "Right"} →
           </button>
@@ -458,6 +538,8 @@ export const BloodMatchView: React.FC = () => {
     if (open.length >= 2 || open.includes(id)) return;
     const card = cards.find((c) => c.id === id)!;
     if (done.includes(card.v)) return;
+    sfx.unlock();
+    sfx.flip();
     const next = [...open, id];
     setOpen(next);
     if (next.length === 2) {
@@ -469,6 +551,8 @@ export const BloodMatchView: React.FC = () => {
         timer.current = setTimeout(() => {
           setDone(nd);
           setOpen([]);
+          if (nd.length === GROUPS.length) sfx.win();
+          else sfx.match();
           if (nd.length === GROUPS.length) {
             const prev = readBest(MATCH_KEY);
             if (prev === null || m < prev) {
@@ -479,7 +563,10 @@ export const BloodMatchView: React.FC = () => {
           }
         }, 350);
       } else {
-        timer.current = setTimeout(() => setOpen([]), 800);
+        timer.current = setTimeout(() => {
+          sfx.miss();
+          setOpen([]);
+        }, 800);
       }
     }
   };
@@ -502,6 +589,7 @@ export const BloodMatchView: React.FC = () => {
           <span className="text-red-700">
             {lang === "bn" ? `সেরা: ${best === null ? "—" : n(best)}` : `Best: ${best === null ? "—" : best}`}
           </span>
+          <MuteButton />
         </div>
 
         <div className="grid grid-cols-4 gap-2.5">

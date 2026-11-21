@@ -10,5 +10,9 @@ public class MainActivity extends BridgeActivity {
         // Always use the light theme, whatever the phone's dark/light setting is
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         super.onCreate(savedInstanceState);
+        // No long-press buzz inside the app (e.g. while holding the game buttons)
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().setHapticFeedbackEnabled(false);
+        }
     }
 }

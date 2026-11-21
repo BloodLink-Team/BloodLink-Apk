@@ -925,6 +925,16 @@ export const SideMenuDrawer: React.FC<{
   const navigate = useNavigate();
   const { lang } = useLanguage();
   useScrollLock(isOpen);
+  const [aiOpen, setAiOpen] = useState(false);
+  const goTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (goTimer.current) clearTimeout(goTimer.current); }, []);
+
+  /** Let the menu finish sliding away first, then change page, so nothing stutters. */
+  const go = (path: string) => {
+    onClose();
+    if (goTimer.current) clearTimeout(goTimer.current);
+    goTimer.current = setTimeout(() => navigate(path), 190);
+  };
 
   // Swipe right-to-left on the open menu closes it
   const touchStartX = useRef<number | null>(null);
@@ -1008,8 +1018,7 @@ export const SideMenuDrawer: React.FC<{
             <button
               type="button"
               onClick={() => {
-                onClose();
-                navigate("/how-to-use");
+                go("/how-to-use");
               }}
               className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
             >
@@ -1026,8 +1035,7 @@ export const SideMenuDrawer: React.FC<{
             <button
               type="button"
               onClick={() => {
-                onClose();
-                navigate("/learn");
+                go("/learn");
               }}
               className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
             >
@@ -1062,8 +1070,7 @@ export const SideMenuDrawer: React.FC<{
             <button
               type="button"
               onClick={() => {
-                onClose();
-                navigate("/helplines");
+                go("/helplines");
               }}
               className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
             >
@@ -1080,8 +1087,7 @@ export const SideMenuDrawer: React.FC<{
             <button
               type="button"
               onClick={() => {
-                onClose();
-                navigate("/games");
+                go("/games");
               }}
               className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
             >
@@ -1098,8 +1104,7 @@ export const SideMenuDrawer: React.FC<{
             <button
               type="button"
               onClick={() => {
-                onClose();
-                navigate("/support");
+                go("/support");
               }}
               className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/80 hover:bg-red-50/70 border border-slate-200/70 hover:border-red-200 active:scale-[0.99] transition-colors text-left group"
             >
@@ -1115,15 +1120,42 @@ export const SideMenuDrawer: React.FC<{
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/60 text-center">
-          <p className="text-[11px] font-bold italic text-slate-500">
-            {lang === "bn"
-              ? "জীবন বাঁচানোর জন্য একটি অলাভজনক উদ্যোগ"
-              : "A non-profit platform that saves lives"}
-          </p>
+        <div>
+          {/* Ask the AI assistant */}
+          <div className="flex items-center justify-end gap-3 px-4 pb-4 pt-2">
+            <span className="text-[11px] font-bold text-slate-400 select-none">
+              {lang === "bn" ? "প্রশ্ন আছে? এআই-কে জিজ্ঞেস করুন" : "Have a question? Ask our AI"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                setTimeout(() => setAiOpen(true), 190);
+              }}
+              className="w-14 h-14 rounded-full bg-[#c80000] shadow-xl shadow-red-950/30 active:scale-95 transition-transform duration-150 flex items-center justify-center border-2 border-white ring-2 ring-red-500/30 overflow-hidden shrink-0"
+              aria-label={lang === "bn" ? "এআই সহকারী খুলুন" : "Open AI Assistant"}
+            >
+              <img src="/assets/assistant-button.png" alt="" className="w-full h-full object-cover pointer-events-none" />
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/60 text-center">
+            <p className="text-[11px] font-bold italic text-slate-500">
+              {lang === "bn"
+                ? "জীবন বাঁচানোর জন্য একটি অলাভজনক উদ্যোগ"
+                : "A non-profit platform that saves lives"}
+            </p>
+          </div>
         </div>
       </aside>
+
+      <FaqAssistantModal
+        faqs={BLOOD_DONATION_FAQS}
+        isOpen={aiOpen}
+        onClose={() => setAiOpen(false)}
+        lang={lang}
+      />
     </div>,
     document.body
   );

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, History, Menu, SquarePen, Trash2, X } from "lucide-react";
+import { ArrowUp, History, List, Plus, SquarePen, Trash2, X } from "lucide-react";
 import type { Language } from "../i18n";
 import type { BloodFaqItem } from "./SideMenuPages";
 import { searchBloodFaqs } from "../utils/faqSearch";
@@ -286,64 +286,74 @@ export const FaqAssistantModal: React.FC<FaqAssistantModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="selectable fixed inset-0 z-[140] flex flex-col bg-white overflow-hidden">
-      <header className="select-none flex items-center gap-2 px-3 py-3 border-b border-slate-100 bg-white">
+    <div className="selectable fixed inset-0 z-[140] flex flex-col bg-slate-50 overflow-hidden">
+      <header
+        className="select-none flex items-center gap-3 px-3 pb-3 bg-[#c80000] text-white shadow-md relative z-10"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
         <button
           type="button"
           onClick={() => setHistoryOpen(true)}
           aria-label={isBn ? "চ্যাট ইতিহাস" : "Chat history"}
-          className="p-2 rounded-full text-slate-600 hover:bg-slate-100 active:bg-slate-200"
+          className="p-2 rounded-full text-white active:bg-white/20"
         >
-          <Menu className="w-6 h-6" />
+          <List className="w-6 h-6" />
         </button>
-        <img
-          src="/assets/assistant-avatar.png"
-          alt=""
-          className="w-9 h-9 rounded-full object-cover"
-        />
+        <div className="w-11 h-11 rounded-2xl border-2 border-white flex items-center justify-center shrink-0">
+          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 100 100" aria-hidden="true">
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M 50 12.6 C 36 32, 18.8 46, 18.8 60.5 C 18.8 77.5, 32.8 89.8, 50 89.8 C 67.2 89.8, 81.2 77.5, 81.2 60.5 C 81.2 46, 64 32, 50 12.6 Z M 50 48 A 16.25 16.25 0 1 0 50 80.5 A 16.25 16.25 0 1 0 50 48 Z"
+            />
+          </svg>
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-sm text-slate-800 truncate">
-            {isBn ? "রক্তদান সহকারী" : "Blood Donation Assistant"}
-          </div>
-          <div className="text-[11px] text-slate-500 truncate">
-            {isBn ? "রক্তদান সম্পর্কে প্রশ্ন করুন" : "Ask anything about blood donation"}
+          <div className="font-extrabold text-xl leading-none truncate">BloodLink</div>
+          <div className="text-xs text-white/90 mt-1 truncate">
+            {isBn ? "রক্তদান এআই সহকারী" : "Blood Donation AI Assistant"}
           </div>
         </div>
         <button
           type="button"
-          onClick={startNewChat}
-          disabled={messages.length === 0}
-          aria-label={isBn ? "নতুন চ্যাট" : "New chat"}
-          className="p-2 rounded-full text-slate-500 hover:bg-slate-100 active:bg-slate-200 disabled:opacity-30"
-        >
-          <SquarePen className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
           onClick={onClose}
           aria-label={isBn ? "বন্ধ করুন" : "Close"}
-          className="p-2 rounded-full text-slate-500 hover:bg-slate-100 active:bg-slate-200"
+          className="p-2 rounded-full text-white active:bg-white/20"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" />
         </button>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+      <div ref={scrollRef} className="flex-1 flex flex-col overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
         {messages.length === 0 && (
-          <div className="space-y-3">
-            <p className="select-none text-sm text-slate-500">
-              {isBn ? "কিছু প্রশ্ন, যা আপনি জানতে চাইতে পারেন:" : "Some questions you might ask:"}
-            </p>
-            {suggestions.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => ask(isBn ? s.questionBn : s.questionEn)}
-                className="block w-full text-left px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-red-50 active:border-red-200"
-              >
-                {isBn ? s.questionBn : s.questionEn}
-              </button>
-            ))}
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 select-none">
+            <div className="relative">
+              <div className="absolute inset-0 -m-10 rounded-full bg-red-200/50 blur-3xl" aria-hidden="true" />
+              <img
+                src="/assets/assistant-avatar.png"
+                alt=""
+                className="relative w-44 h-44 object-contain pointer-events-none"
+              />
+              <div
+                className="mx-auto -mt-1 h-3 w-32 rounded-full bg-red-300/60 blur-md"
+                aria-hidden="true"
+              />
+            </div>
+            <div className="w-full space-y-2">
+              <p className="text-xs font-bold text-slate-400 text-center">
+                {isBn ? "কিছু প্রশ্ন, যা আপনি জানতে চাইতে পারেন" : "Some questions you might ask"}
+              </p>
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => ask(isBn ? s.questionBn : s.questionEn)}
+                  className="block w-full text-left px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-700 active:bg-red-50 active:border-red-200"
+                >
+                  {isBn ? s.questionBn : s.questionEn}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -411,23 +421,33 @@ export const FaqAssistantModal: React.FC<FaqAssistantModalProps> = ({
           e.preventDefault();
           ask(input);
         }}
-        className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 bg-white"
+        className="px-4 pt-3 border-t border-slate-200 bg-white"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={isBn ? "আপনার প্রশ্ন লিখুন..." : "Type your question..."}
-          className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-[#c80000]"
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || busy}
-          aria-label={isBn ? "পাঠান" : "Send"}
-          className="w-10 h-10 rounded-full bg-[#c80000] text-white flex items-center justify-center disabled:opacity-40"
-        >
-          <ArrowUp className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2 rounded-full border-2 border-slate-200 bg-white pl-2 pr-2 py-1.5 shadow-sm focus-within:border-[#c80000] transition-colors">
+          <button
+            type="button"
+            onClick={startNewChat}
+            aria-label={isBn ? "নতুন চ্যাট" : "New chat"}
+            className="w-9 h-9 shrink-0 rounded-full text-slate-500 flex items-center justify-center active:bg-slate-100"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={isBn ? "রক্তদান নিয়ে প্রশ্ন করুন..." : "Ask about blood donation..."}
+            className="flex-1 min-w-0 bg-transparent px-1 py-2 text-[15px] outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || busy}
+            aria-label={isBn ? "পাঠান" : "Send"}
+            className="w-10 h-10 shrink-0 rounded-full bg-[#c80000] text-white flex items-center justify-center disabled:bg-slate-200 disabled:text-slate-400 transition-colors"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </button>
+        </div>
       </form>
 
       {/* ---- chat history panel (slides in from the left) ---- */}

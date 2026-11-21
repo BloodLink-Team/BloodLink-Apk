@@ -29,17 +29,19 @@ export const BadgeIcon: React.FC<{ tier: BadgeTier; size?: number }> = ({ tier, 
 };
 
 /** Small badge chip shown under the donor's name. */
-export const BadgeChip: React.FC<{ times: number | string | undefined }> = ({ times }) => {
+export const BadgeChip: React.FC<{ times: number | string | undefined; compact?: boolean }> = ({ times, compact }) => {
   const { lang } = useLanguage();
   const tier = getBadge(times);
   if (!tier) return null;
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border"
+      className={`inline-flex items-center gap-1 rounded-full font-black uppercase tracking-wider border whitespace-nowrap ${
+        compact ? "px-2 py-0.5 text-[9px]" : "px-3 py-1 text-[11px] gap-1.5"
+      }`}
       style={{ background: tier.soft, color: tier.color, borderColor: tier.color }}
     >
-      <Medal className="w-3.5 h-3.5" />
-      {lang === "bn" ? `${tier.bn} রক্তদাতা` : `${tier.en} Donor`}
+      <Medal className={compact ? "w-3 h-3" : "w-3.5 h-3.5"} />
+      {lang === "bn" ? (compact ? tier.bn : `${tier.bn} রক্তদাতা`) : compact ? tier.en : `${tier.en} Donor`}
     </span>
   );
 };
@@ -141,8 +143,7 @@ export const BadgeCard: React.FC<{
     }
   }, [idx, isOwnProfile, donor.phone]);
 
-  const prevMin = tier ? tier.min : 0;
-  const progress = next ? Math.min(100, Math.round(((times - prevMin) / (next.min - prevMin)) * 100)) : 100;
+  const progress = next ? Math.max(4, Math.min(100, Math.round((times / next.min) * 100))) : 100;
   const name = (b: BadgeTier) => (lang === "bn" ? b.bn : b.en);
 
   return (
@@ -223,10 +224,10 @@ export const BadgeCard: React.FC<{
             type="button"
             disabled={!canAddDonation}
             onClick={() => setShowAdd(true)}
-            className="w-full py-3.5 rounded-2xl bg-red-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400"
+            className="w-full py-3.5 px-3 rounded-2xl bg-red-700 text-white text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 whitespace-nowrap disabled:bg-slate-200 disabled:text-slate-400"
           >
-            <PlusCircle className="w-4 h-4" />
-            {lang === "bn" ? "আজ রক্ত দিয়েছি (+১)" : "I donated blood today (+1)"}
+            <PlusCircle className="w-4 h-4 shrink-0" />
+            <span>{lang === "bn" ? "আজ রক্ত দিয়েছি (+১)" : "I donated today (+1)"}</span>
           </button>
           {!canAddDonation && nextEligibleDate && (
             <p className="text-[11px] font-bold text-amber-700 text-center">

@@ -955,6 +955,10 @@ const NativeBackHandler: React.FC = () => {
 /** Re-mounts on every page change so each page fades in (see the page wrappers). */
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
+  // every new page starts at the top
+  React.useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   return (
     <div key={location.pathname}>
       <Routes location={location}>
@@ -2044,8 +2048,17 @@ const DonorList = () => {
       const seenPhones = new Set<string>();
       const mergedDonors: Donor[] = [];
 
+      // A signed-in donor never sees their own profile in search results
+      let ownPhone = "";
+      try {
+        const me = JSON.parse(safeGetItem("donor_session") || "null");
+        if (me && typeof me.phone === "string") ownPhone = me.phone;
+      } catch {
+        // ignore
+      }
+
       for (const d of allDonors) {
-        if (d && d.isActive !== false && d.phone && !seenPhones.has(d.phone)) {
+        if (d && d.isActive !== false && d.phone && d.phone !== ownPhone && !seenPhones.has(d.phone)) {
           seenPhones.add(d.phone);
           mergedDonors.push(d);
         }
@@ -2170,7 +2183,10 @@ const DonorList = () => {
               {donor.bloodGroup}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-slate-800 text-lg leading-snug break-words">{donor.name}</h3>
+              <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                <h3 className="font-bold text-slate-800 text-lg leading-snug break-words">{donor.name}</h3>
+                <BadgeChip times={donor.timesDonated} compact />
+              </div>
               <p className="text-xs text-slate-500 font-medium flex items-center mt-0.5 min-w-0">
                 <MapPin className="w-3.5 h-3.5 mr-1 text-red-600 flex-shrink-0" />
                 <span className="truncate">{loc(donor.upazila)}, {loc(donor.district)}</span>
